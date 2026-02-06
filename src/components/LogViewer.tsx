@@ -1,4 +1,5 @@
 import { useRef, useMemo, useEffect } from "react";
+import { useKernTheme } from "../lib/theme-context.ts";
 import type { ScrollBoxRenderable } from "@opentui/core";
 import type { ProcessState, LogLine } from "../lib/types.ts";
 
@@ -46,6 +47,7 @@ export function LogViewer({
   currentMatchIndex,
 }: LogViewerProps) {
   const scrollRef = useRef<ScrollBoxRenderable>(null);
+  const colors = useKernTheme();
 
   const logs = proc?.logs ?? [];
 
@@ -89,7 +91,7 @@ export function LogViewer({
   if (!proc) {
     return (
       <box flexGrow={1} flexDirection="column" padding={1}>
-        <text fg="#6b7280">No process selected</text>
+        <text fg={colors.mutedText}>No process selected</text>
       </box>
     );
   }
@@ -98,20 +100,20 @@ export function LogViewer({
     <box flexGrow={1} flexDirection="column">
       {searchMode && (
         <box paddingLeft={1} paddingRight={1}>
-          <text fg={isRegexMode ? "#3b82f6" : "#eab308"}>/</text>
+          <text fg={isRegexMode ? colors.searchRegexIndicator : colors.searchTextIndicator}>/</text>
           <input
             focused
             flexGrow={1}
             placeholder="Search logs..."
-            placeholderColor="#6b7280"
+            placeholderColor={colors.mutedText}
             onChange={(value) => onSearchChange(value)}
           />
         </box>
       )}
       {!searchMode && searchQuery && (
         <box paddingLeft={1}>
-          <text fg="#6b7280">
-            Search: <span fg={isRegexMode ? "#3b82f6" : "#eab308"}>{searchQuery}</span>{" "}
+          <text fg={colors.mutedText}>
+            Search: <span fg={isRegexMode ? colors.searchRegexIndicator : colors.searchTextIndicator}>{searchQuery}</span>{" "}
             ({wrappedIndex >= 0 ? wrappedIndex + 1 : 0}/{matchIndices.length})
           </text>
         </box>
@@ -125,7 +127,7 @@ export function LogViewer({
       >
         {logs.length === 0 ? (
           <box paddingLeft={1}>
-            <text fg="#6b7280">Waiting for output...</text>
+            <text fg={colors.mutedText}>Waiting for output...</text>
           </box>
         ) : (
           logs.map((line, i) => {
@@ -135,14 +137,14 @@ export function LogViewer({
               <box
                 key={i}
                 paddingLeft={1}
-                backgroundColor={isCurrent ? "#3a3a00" : isMatch ? "#2a2a00" : undefined}
+                backgroundColor={isCurrent ? colors.searchCurrentMatchBackground : isMatch ? colors.searchMatchBackground : undefined}
               >
                 <text
                   fg={
                     isCurrent
-                      ? "#eab308"
+                      ? colors.searchCurrentMatchText
                       : line.stream === "stderr"
-                        ? "#ef4444"
+                        ? colors.stderrText
                         : undefined
                   }
                 >

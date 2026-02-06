@@ -3,6 +3,9 @@ set -e
 
 REPO="context-labs/kern"
 INSTALL_DIR="$HOME/.kern/bin"
+THEMES_DIR="$HOME/.kern/themes"
+SCHEMAS_DIR="$HOME/.kern/schemas"
+CONFIG_FILE="$HOME/.kern/config.json"
 
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 ARCH=$(uname -m)
@@ -36,6 +39,7 @@ if [ -z "$TAG" ]; then
 fi
 
 URL="https://github.com/${REPO}/releases/download/${TAG}/${BINARY}"
+RAW="https://raw.githubusercontent.com/${REPO}/main"
 
 mkdir -p "${INSTALL_DIR}"
 
@@ -44,6 +48,34 @@ curl -fsSL "$URL" -o "${INSTALL_DIR}/kern"
 chmod +x "${INSTALL_DIR}/kern"
 
 echo "kern ${TAG} installed to ${INSTALL_DIR}/kern"
+
+# Set up config directory structure
+mkdir -p "${THEMES_DIR}"
+mkdir -p "${SCHEMAS_DIR}"
+
+# Download schemas
+echo "Downloading schemas..."
+curl -fsSL "${RAW}/schemas/config.schema.json" -o "${SCHEMAS_DIR}/config.schema.json" 2>/dev/null || true
+curl -fsSL "${RAW}/schemas/theme.schema.json" -o "${SCHEMAS_DIR}/theme.schema.json" 2>/dev/null || true
+
+# Download default theme (don't overwrite if user has customized it)
+if [ ! -f "${THEMES_DIR}/default.json" ]; then
+  echo "Downloading default theme..."
+  curl -fsSL "${RAW}/themes/default.json" -o "${THEMES_DIR}/default.json" 2>/dev/null || true
+fi
+
+# Create default config if it doesn't exist
+if [ ! -f "${CONFIG_FILE}" ]; then
+  echo "Creating default config..."
+  cat > "${CONFIG_FILE}" << 'CONFIGEOF'
+{
+  "$schema": "./schemas/config.schema.json",
+  "theme": "default"
+}
+CONFIGEOF
+fi
+
+echo "Config directory set up at ~/.kern/"
 
 # Add to PATH if not already there
 case ":$PATH:" in

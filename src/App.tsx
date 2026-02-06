@@ -6,15 +6,20 @@ import { StatusBar } from "./components/StatusBar.tsx";
 import { ProcessManager } from "./lib/process-manager.ts";
 import { copyToClipboard } from "./lib/clipboard.ts";
 import { getVersionInfo, checkForUpdates } from "./lib/version.ts";
+import { matchesBinding } from "./lib/user-config.ts";
+import { KernProvider } from "./lib/theme-context.ts";
 import type { VersionInfo } from "./lib/version.ts";
 import type { KernConfig, ProcessState } from "./lib/types.ts";
+import type { ThemeColors, Keybindings } from "./lib/user-config.ts";
 
 interface AppProps {
   config: KernConfig;
   onManagerReady?: (manager: ProcessManager) => void;
+  theme: ThemeColors;
+  keybindings: Keybindings;
 }
 
-export function App({ config, onManagerReady }: AppProps) {
+export function App({ config, onManagerReady, theme, keybindings }: AppProps) {
   const renderer = useRenderer();
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [processes, setProcesses] = useState<ProcessState[]>([]);
@@ -56,13 +61,14 @@ export function App({ config, onManagerReady }: AppProps) {
   }, []);
 
   const shuttingDownRef = useRef(false);
+  const kb = keybindings;
 
   useKeyboard((key) => {
     const manager = managerRef.current;
     if (!manager) return;
 
     // Quit / force kill
-    if (key.name === "q" || (key.ctrl && key.name === "c")) {
+    if (matchesBinding(key, kb.quit) || matchesBinding(key, kb.forceQuit)) {
       if (searchMode) return; // let input handle it
       if (shuttingDownRef.current) {
         manager.forceKillAll();
@@ -78,50 +84,50 @@ export function App({ config, onManagerReady }: AppProps) {
 
     // In search mode (input open), only handle Escape and Enter
     if (searchMode) {
-      if (key.name === "escape") {
+      if (matchesBinding(key, kb.searchClear)) {
         setSearchMode(false);
         setSearchQuery("");
         setCurrentMatchIndex(0);
-      } else if (key.name === "return") {
+      } else if (matchesBinding(key, kb.searchClose)) {
         // Close input, keep highlights + match position
         setSearchMode(false);
       }
       return;
     }
 
-    // Search active (input closed): n/Enter = next, N = prev, Escape = clear
+    // Search active (input closed): next/prev/clear
     if (searchQuery) {
-      if (key.name === "escape") {
+      if (matchesBinding(key, kb.searchClear)) {
         setSearchQuery("");
         setCurrentMatchIndex(0);
         return;
       }
-      if (key.name === "return" || key.name === "n") {
+      if (matchesBinding(key, kb.searchClose) || matchesBinding(key, kb.searchNext)) {
         setCurrentMatchIndex((i) => i + 1);
         return;
       }
-      if (key.name === "b" || key.name === "up") {
+      if (matchesBinding(key, kb.searchPrevious) || matchesBinding(key, kb.selectPrevious)) {
         setCurrentMatchIndex((i) => i - 1);
         return;
       }
-      if (key.name === "down") {
+      if (matchesBinding(key, kb.selectNext)) {
         setCurrentMatchIndex((i) => i + 1);
         return;
       }
     }
 
     // Arrow keys for process selection
-    if (key.name === "up") {
+    if (matchesBinding(key, kb.selectPrevious)) {
       setSelectedIndex((i) => Math.max(0, i - 1));
       return;
     }
-    if (key.name === "down") {
+    if (matchesBinding(key, kb.selectNext)) {
       setSelectedIndex((i) => Math.min(processes.length - 1, i + 1));
       return;
     }
 
     // Search mode
-    if (key.name === "/") {
+    if (matchesBinding(key, kb.search)) {
       setSearchMode(true);
       setSearchQuery("");
       setCurrentMatchIndex(0);
@@ -129,14 +135,14 @@ export function App({ config, onManagerReady }: AppProps) {
     }
 
     // Restart
-    if (key.name === "r") {
+    if (matchesBinding(key, kb.restart)) {
       manager.restart(selectedIndex);
       showStatus(`Restarting ${processes[selectedIndex]?.config.name ?? "process"}...`);
       return;
     }
 
     // Copy logs
-    if (key.name === "c") {
+    if (matchesBinding(key, kb.copyLogs)) {
       const text = manager.getLogText(selectedIndex);
       copyToClipboard(text).then((ok) => {
         showStatus(ok ? "Logs copied!" : "Failed to copy logs");
@@ -148,27 +154,29 @@ export function App({ config, onManagerReady }: AppProps) {
   const currentProcess = processes[selectedIndex];
 
   return (
-    <box flexDirection="column" width="100%" height="100%">
-      <box flexDirection="row" flexGrow={1}>
-        <Sidebar
-          processes={processes}
-          selectedIndex={selectedIndex}
-          onSelect={setSelectedIndex}
-        />
-        <LogViewer
-          process={currentProcess}
-          searchMode={searchMode}
+    <KernProvider value={{ theme, keybindings }}>
+      <box flexDirection="column" width="100%" height="100%">
+        <box flexDirection="row" flexGrow={1}>
+          <Sidebar
+            processes={processes}
+            selectedIndex={selectedIndex}
+            onSelect={setSelectedIndex}
+          />
+          <LogViewer
+            process={currentProcess}
+            searchMode={searchMode}
+            searchQuery={searchQuery}
+            onSearchChange={onSearchChange}
+            currentMatchIndex={currentMatchIndex}
+          />
+        </box>
+        <StatusBar
+          message={statusMessage}
           searchQuery={searchQuery}
-          onSearchChange={onSearchChange}
-          currentMatchIndex={currentMatchIndex}
+          searchMode={searchMode}
+          versionInfo={versionInfo}
         />
       </box>
-      <StatusBar
-        message={statusMessage}
-        searchQuery={searchQuery}
-        searchMode={searchMode}
-        versionInfo={versionInfo}
-      />
-    </box>
+    </KernProvider>
   );
 }

@@ -1,3 +1,5 @@
+import { useKernTheme, useKeybindings } from "../lib/theme-context.ts";
+import { bindingDisplayName } from "../lib/user-config.ts";
 import type { VersionInfo } from "../lib/version.ts";
 
 interface StatusBarProps {
@@ -8,6 +10,9 @@ interface StatusBarProps {
 }
 
 export function StatusBar({ message, searchQuery, searchMode, versionInfo }: StatusBarProps) {
+  const colors = useKernTheme();
+  const kb = useKeybindings();
+
   const versionText = versionInfo.isDev
     ? `kern ${versionInfo.current}`
     : `kern v${versionInfo.current}`;
@@ -17,7 +22,7 @@ export function StatusBar({ message, searchQuery, searchMode, versionInfo }: Sta
       height={3}
       border
       borderStyle="single"
-      borderColor="#444444"
+      borderColor={colors.borderColor}
       flexDirection="row"
       justifyContent="space-between"
       paddingLeft={1}
@@ -25,27 +30,27 @@ export function StatusBar({ message, searchQuery, searchMode, versionInfo }: Sta
     >
       <box>
         {message ? (
-          <text fg="#22c55e">{message}</text>
+          <text fg={colors.statusMessageText}>{message}</text>
         ) : searchQuery && !searchMode ? (
-          <text fg="#6b7280">
-            <strong>n</strong> Next{"  "}
-            <strong>b</strong> Back{"  "}
-            <strong>ESC</strong> Clear
+          <text fg={colors.mutedText}>
+            <strong>{bindingDisplayName(kb.searchNext)}</strong> Next{"  "}
+            <strong>{bindingDisplayName(kb.searchPrevious)}</strong> Back{"  "}
+            <strong>{bindingDisplayName(kb.searchClear)}</strong> Clear
           </text>
         ) : searchMode ? null : (
-          <text fg="#6b7280">
-            <strong>/</strong> Search{"  "}
-            <strong>r</strong> Restart{"  "}
-            <strong>c</strong> Copy logs{"  "}
-            <strong>q</strong> Quit
+          <text fg={colors.mutedText}>
+            <strong>{bindingDisplayName(kb.search)}</strong> Search{"  "}
+            <strong>{bindingDisplayName(kb.restart)}</strong> Restart{"  "}
+            <strong>{bindingDisplayName(kb.copyLogs)}</strong> Copy logs{"  "}
+            <strong>{bindingDisplayName(kb.quit)}</strong> Quit
           </text>
         )}
       </box>
       <box>
-        <text fg="#555555">
+        <text fg={colors.versionText}>
           {versionText}
           {versionInfo.updateAvailable && versionInfo.latest ? (
-            <span fg="#eab308"> (v{versionInfo.latest.replace(/^v/, "")} available)</span>
+            <span fg={colors.updateAvailableText}> (v{versionInfo.latest.replace(/^v/, "")} available)</span>
           ) : null}
         </text>
       </box>

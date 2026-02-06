@@ -22,13 +22,9 @@ bun run build
 kern kern.jsonc
 ```
 
-Or run directly with Bun:
-
-```sh
-bun run src/index.tsx kern.jsonc
-```
-
 ## Keyboard Shortcuts
+
+All keyboard shortcuts can be customized via `~/.kern/config.json` (see [User Config](#user-config) below). The defaults are:
 
 | Key | Action |
 |-----|--------|
@@ -36,7 +32,7 @@ bun run src/index.tsx kern.jsonc
 | `/` | Search logs (highlights matches, jumps to first) |
 | `Enter` | Close search input (keep highlights) |
 | `n` / `Enter` | Jump to next match |
-| `N` | Jump to previous match |
+| `b` | Jump to previous match |
 | `Escape` | Clear search / cancel |
 | `r` | Restart selected process |
 | `c` | Copy logs to clipboard |
@@ -161,13 +157,112 @@ Available MCP tools: `list_processes`, `get_logs`, `search_logs`, `restart_proce
 Pass multiple config files to merge them. Processes are concatenated; the first config with `mcp` or `parent` wins:
 
 ```sh
-bun run src/index.tsx base.jsonc overrides.jsonc
+kern base.jsonc overrides.jsonc
 ```
+
+## User Config
+
+kern supports a user-level configuration file at `~/.kern/config.json` for customizing keybindings and theme colors. All fields are optional — missing values use defaults.
+
+```jsonc
+{
+  "$schema": "./schemas/config.schema.json",
+  "theme": "default",
+  "keybindings": {
+    "quit": "q",
+    "forceQuit": "ctrl+c",
+    "selectPrevious": "up",
+    "selectNext": "down",
+    "search": "/",
+    "searchNext": "n",
+    "searchPrevious": "b",
+    "searchClose": "return",
+    "searchClear": "escape",
+    "restart": "r",
+    "copyLogs": "c"
+  }
+}
+```
+
+### Keybindings
+
+Override any keybinding by setting it to a key name string. Modifier keys are supported with `+` syntax:
+
+- Simple keys: `"q"`, `"r"`, `"/"`, `"n"`, `"escape"`, `"return"`, `"up"`, `"down"`
+- With modifiers: `"ctrl+c"`, `"ctrl+r"`, `"shift+n"`, `"meta+q"`
+
+Only the keybindings you specify are overridden — the rest keep their defaults.
+
+### Themes
+
+Themes control the UI colors. They live in `~/.kern/themes/` as JSON files. On first run, kern creates `~/.kern/themes/default.json` automatically.
+
+Set the active theme in your config:
+
+```jsonc
+{
+  "theme": "monokai"
+}
+```
+
+This loads `~/.kern/themes/monokai.json`. To create a custom theme, copy the default and edit it:
+
+```sh
+cp ~/.kern/themes/default.json ~/.kern/themes/monokai.json
+```
+
+A theme file looks like:
+
+```jsonc
+{
+  "$schema": "../schemas/theme.schema.json",
+  "name": "My Theme",
+  "colors": {
+    "borderColor": "#444444",
+    "mutedText": "#6b7280",
+    "selectedBackground": "#333333",
+    "statusRunning": "#22c55e",
+    "statusStarting": "#eab308",
+    "statusStopping": "#f97316",
+    "statusStopped": "#6b7280",
+    "statusCrashed": "#ef4444",
+    "stderrText": "#ef4444",
+    "searchRegexIndicator": "#3b82f6",
+    "searchTextIndicator": "#eab308",
+    "searchMatchBackground": "#2a2a00",
+    "searchCurrentMatchBackground": "#3a3a00",
+    "searchCurrentMatchText": "#eab308",
+    "statusMessageText": "#22c55e",
+    "versionText": "#555555",
+    "updateAvailableText": "#eab308"
+  }
+}
+```
+
+All color fields are optional — missing values fall back to the defaults above.
+
+### Color Reference
+
+| Color | Default | Used For |
+|-------|---------|----------|
+| `borderColor` | `#444444` | Sidebar and status bar borders |
+| `mutedText` | `#6b7280` | Placeholder text, hints, muted labels |
+| `selectedBackground` | `#333333` | Highlighted process row background |
+| `statusRunning` | `#22c55e` | Running process dot |
+| `statusStarting` | `#eab308` | Starting process dot |
+| `statusStopping` | `#f97316` | Stopping process dot |
+| `statusStopped` | `#6b7280` | Stopped process dot |
+| `statusCrashed` | `#ef4444` | Crashed process dot and name |
+| `stderrText` | `#ef4444` | Stderr log lines |
+| `searchRegexIndicator` | `#3b82f6` | Search `/` indicator (regex mode) |
+| `searchTextIndicator` | `#eab308` | Search `/` indicator (text mode) |
+| `searchMatchBackground` | `#2a2a00` | Matching log line background |
+| `searchCurrentMatchBackground` | `#3a3a00` | Current match background |
+| `searchCurrentMatchText` | `#eab308` | Current match text color |
+| `statusMessageText` | `#22c55e` | Status bar messages (e.g. "Logs copied!") |
+| `versionText` | `#555555` | Version label in status bar |
+| `updateAvailableText` | `#eab308` | "Update available" notice |
 
 ## JSON Schema
 
-The schema file `kern.schema.json` provides editor autocompletion and validation. To regenerate it after changing the config format:
-
-```sh
-bun run generate:schema
-```
+The schema file `kern.schema.json` provides editor autocompletion and validation for process config files. Schema files for user config and themes are in the `schemas/` directory.

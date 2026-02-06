@@ -1,0 +1,70 @@
+{
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "colors": {
+      "type": "object",
+      "properties": {
+        "borderColor": {
+          "type": "string"
+        },
+        "mutedText": {
+          "type": "string"
+        },
+        "selectedBackground": {
+          "type": "string"
+        },
+        "statusRunning": {
+          "type": "string"
+        },
+        "statusStarting": {
+          "type": "string"
+        },
+        "statusStopping": {
+          "type": "string"
+        },
+        "statusStopped": {
+          "type": "string"
+        },
+        "statusCrashed": {
+          "type": "string"
+        },
+        "stderrText": {
+          "type": "string"
+        },
+        "searchRegexIndicator": {
+          "type": "string"
+        },
+        "searchTextIndicator": {
+          "type": "string"
+        },
+        "searchMatchBackground": {
+          "type": "string"
+        },
+        "searchCurrentMatchBackground": {
+          "type": "string"
+        },
+        "searchCurrentMatchText": {
+          "type": "string"
+        },
+        "statusMessageText": {
+          "type": "string"
+        },
+        "versionText": {
+          "type": "string"
+        },
+        "updateAvailableText": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}
