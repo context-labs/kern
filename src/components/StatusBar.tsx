@@ -29,7 +29,7 @@ export function StatusBar({ message, searchQuery, searchMode, versionInfo }: Sta
         ) : searchQuery && !searchMode ? (
           <text fg="#6b7280">
             <strong>n</strong> Next{"  "}
-            <strong>N</strong> Prev{"  "}
+            <strong>b</strong> Back{"  "}
             <strong>ESC</strong> Clear
           </text>
         ) : searchMode ? null : (

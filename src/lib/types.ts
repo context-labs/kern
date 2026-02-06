@@ -9,6 +9,7 @@ export interface ProcessConfig {
   cwd?: string;
   env?: Record<string, string>;
   noParent?: boolean;
+  shutdownOrder?: number;
 }
 
 export interface KernConfig {

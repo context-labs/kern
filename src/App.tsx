@@ -100,26 +100,22 @@ export function App({ config, onManagerReady }: AppProps) {
         setCurrentMatchIndex((i) => i + 1);
         return;
       }
-      if (key.name === "N" || (key.shift && key.name === "n")) {
+      if (key.name === "b" || key.name === "up") {
         setCurrentMatchIndex((i) => i - 1);
+        return;
+      }
+      if (key.name === "down") {
+        setCurrentMatchIndex((i) => i + 1);
         return;
       }
     }
 
-    // Arrow keys for process selection (clears active search)
+    // Arrow keys for process selection
     if (key.name === "up") {
-      if (searchQuery) {
-        setSearchQuery("");
-        setCurrentMatchIndex(0);
-      }
       setSelectedIndex((i) => Math.max(0, i - 1));
       return;
     }
     if (key.name === "down") {
-      if (searchQuery) {
-        setSearchQuery("");
-        setCurrentMatchIndex(0);
-      }
       setSelectedIndex((i) => Math.min(processes.length - 1, i + 1));
       return;
     }

@@ -10,6 +10,17 @@ interface LogViewerProps {
   currentMatchIndex: number;
 }
 
+function isValidRegex(query: string): boolean {
+  if (!query) return false;
+  if (!/[[\](){}*+?|^$\\]/.test(query)) return false;
+  try {
+    new RegExp(query);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function findMatchIndices(logs: LogLine[], query: string): number[] {
   if (!query) return [];
   const indices: number[] = [];
@@ -48,6 +59,11 @@ export function LogViewer({
     [matchIndices],
   );
 
+  const isRegexMode = useMemo(
+    () => isValidRegex(searchQuery),
+    [searchQuery],
+  );
+
   // Compute the actual current match index (wrapped)
   const wrappedIndex = matchIndices.length > 0
     ? ((currentMatchIndex % matchIndices.length) + matchIndices.length) % matchIndices.length
@@ -82,7 +98,7 @@ export function LogViewer({
     <box flexGrow={1} flexDirection="column">
       {searchMode && (
         <box paddingLeft={1} paddingRight={1}>
-          <text fg="#eab308">/</text>
+          <text fg={isRegexMode ? "#3b82f6" : "#eab308"}>/</text>
           <input
             focused
             flexGrow={1}
@@ -95,7 +111,7 @@ export function LogViewer({
       {!searchMode && searchQuery && (
         <box paddingLeft={1}>
           <text fg="#6b7280">
-            Search: <span fg="#eab308">{searchQuery}</span>{" "}
+            Search: <span fg={isRegexMode ? "#3b82f6" : "#eab308"}>{searchQuery}</span>{" "}
             ({wrappedIndex >= 0 ? wrappedIndex + 1 : 0}/{matchIndices.length})
           </text>
         </box>

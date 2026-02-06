@@ -169,7 +169,16 @@ export class ProcessManager {
   }
 
   async stopAll() {
-    await Promise.all(this.states.map((_, i) => this.stop(i)));
+    const groups = new Map<number, number[]>();
+    for (let i = 0; i < this.states.length; i++) {
+      const order = this.states[i]!.config.shutdownOrder ?? Infinity;
+      if (!groups.has(order)) groups.set(order, []);
+      groups.get(order)!.push(i);
+    }
+    const sortedOrders = Array.from(groups.keys()).sort((a, b) => a - b);
+    for (const order of sortedOrders) {
+      await Promise.all(groups.get(order)!.map((i) => this.stop(i)));
+    }
   }
 
   forceKillAll() {

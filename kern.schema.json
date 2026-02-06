@@ -46,6 +46,9 @@
           },
           "noParent": {
             "type": "boolean"
+          },
+          "shutdownOrder": {
+            "type": "number"
           }
         },
         "required": [

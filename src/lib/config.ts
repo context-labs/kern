@@ -69,6 +69,7 @@ export const ProcessConfigSchema = z.object({
   cwd: z.string().optional(),
   env: z.record(z.string()).optional(),
   noParent: z.boolean().optional(),
+  shutdownOrder: z.number().optional(),
 });
 
 export const KernConfigSchema = z.object({
@@ -105,6 +106,7 @@ export async function loadConfig(configPath: string): Promise<KernConfig> {
     cwd: p.cwd ? resolve(configDir, p.cwd) : configDir,
     env: p.env ?? undefined,
     noParent: p.noParent ?? undefined,
+    shutdownOrder: p.shutdownOrder ?? undefined,
   }));
 
   return {
