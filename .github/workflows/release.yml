@@ -49,8 +49,6 @@ jobs:
             name: kern-linux-x64
           - runner: depot-macos-latest
             name: kern-darwin-arm64
-          - runner: depot-macos-13
-            name: kern-darwin-x64
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
