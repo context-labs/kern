@@ -8,10 +8,6 @@
     "dev": "bun run --watch src/index.tsx",
     "start": "bun run src/index.tsx",
     "build": "bun build --compile src/index.tsx --outfile dist/kern --define \"KERN_VERSION='$(jq -r .version package.json)'\" --define \"KERN_COMPILED='true'\"",
-    "build:darwin-arm64": "bun build --compile --target=bun-darwin-arm64 src/index.tsx --outfile dist/kern-darwin-arm64 --define \"KERN_VERSION='$(jq -r .version package.json)'\" --define \"KERN_COMPILED='true'\"",
-    "build:darwin-x64": "bun build --compile --target=bun-darwin-x64 src/index.tsx --outfile dist/kern-darwin-x64 --define \"KERN_VERSION='$(jq -r .version package.json)'\" --define \"KERN_COMPILED='true'\"",
-    "build:linux-arm64": "bun build --compile --target=bun-linux-arm64 src/index.tsx --outfile dist/kern-linux-arm64 --define \"KERN_VERSION='$(jq -r .version package.json)'\" --define \"KERN_COMPILED='true'\"",
-    "build:linux-x64": "bun build --compile --target=bun-linux-x64 src/index.tsx --outfile dist/kern-linux-x64 --define \"KERN_VERSION='$(jq -r .version package.json)'\" --define \"KERN_COMPILED='true'\"",
     "generate:schema": "bun run src/lib/generate-schema.ts"
   },
   "devDependencies": {
