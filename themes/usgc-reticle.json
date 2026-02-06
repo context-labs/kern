@@ -1,3 +1,23 @@
 {
-  "$schema": ""
+  "$schema": "../schemas/theme.schema.json",
+  "name": "USGC Reticle",
+  "colors": {
+    "borderColor": "#1c1c1c",
+    "mutedText": "#757575",
+    "selectedBackground": "#0f1a14",
+    "statusRunning": "#50C878",
+    "statusStarting": "#E0A850",
+    "statusStopping": "#F0C870",
+    "statusStopped": "#585858",
+    "statusCrashed": "#E86070",
+    "stderrText": "#E86070",
+    "searchRegexIndicator": "#5CC8E0",
+    "searchTextIndicator": "#E0A850",
+    "searchMatchBackground": "#E0A85020",
+    "searchCurrentMatchBackground": "#00B05028",
+    "searchCurrentMatchText": "#00B050",
+    "statusMessageText": "#00B050",
+    "versionText": "#505050",
+    "updateAvailableText": "#E0A850"
+  }
 }
