@@ -1,0 +1,40 @@
+{
+  "$schema": "./kern.schema.json",
+  // Optional MCP server for agent integration
+  // "mcp": {
+  //   "enabled": true,
+  //   "port": 3100
+  // },
+
+  // Wrap every process command in a parent template.
+  // Available placeholders: {{ name }}, {{ command }}, {{ cwd }}
+  // "parent": "docker exec -i mycontainer sh -c '{{ command }}'",
+
+  "processes": [
+    {
+      "name": "Counter",
+      "command": "while true; do echo \"[$(date +%H:%M:%S)] tick $(( i++ ))\"; sleep 1; done"
+    },
+    {
+      "name": "Logger",
+      "command": "for i in $(seq 1 50); do echo \"Log line $i\"; sleep 0.2; done; echo 'Done!' >&2",
+      // Intentionally bad cwd to demo crash handling
+      "cwd": "./logs"
+    },
+    {
+      "name": "Watcher",
+      "command": "echo 'Watching files...' && while true; do echo \"$(date +%H:%M:%S) - no changes\"; sleep 3; done",
+      // Pass custom environment variables
+      "env": {
+        "WATCH_DIR": "./src",
+        "POLL_INTERVAL": "3"
+      }
+    },
+    {
+      "name": "Health Check",
+      "command": "while true; do echo \"$(date +%H:%M:%S) healthy\"; sleep 5; done",
+      // Skip the parent template for this process (runs on host even when parent is set)
+      "noParent": true
+    }
+  ]
+}
