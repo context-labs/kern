@@ -263,6 +263,49 @@ All color fields are optional — missing values fall back to the defaults above
 | `versionText` | `#555555` | Version label in status bar |
 | `updateAvailableText` | `#eab308` | "Update available" notice |
 
+## Headless Mode
+
+Run processes in the background without a TUI, then attach/detach like tmux.
+
+### Start a headless session
+
+```sh
+kern --headless config.jsonc
+```
+
+This starts all processes in the background, prints session info, and stays alive. Multiple configs are supported:
+
+```sh
+kern --headless base.jsonc overrides.jsonc
+```
+
+### List active sessions
+
+```sh
+kern --list
+```
+
+Shows all running headless sessions with their IDs, ports, PIDs, and uptime.
+
+### Attach to a session
+
+```sh
+kern --attach <session-id>
+```
+
+Opens the full TUI connected to the running headless daemon. Logs, search, and restart all work as normal.
+
+- `q` — Detach (close TUI, daemon keeps running)
+- `Ctrl+C` — Shut down the daemon and exit
+
+### Stop a session
+
+```sh
+kern --stop <session-id>
+```
+
+Sends SIGTERM to the headless daemon, which gracefully stops all processes and exits.
+
 ## JSON Schema
 
 The schema file `kern.schema.json` provides editor autocompletion and validation for process config files. Schema files for user config and themes are in the `schemas/` directory.

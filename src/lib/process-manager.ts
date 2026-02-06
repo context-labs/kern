@@ -1,17 +1,36 @@
 import type { KernConfig, ProcessConfig, ProcessState, ProcessStatus, LogLine } from "./types.ts";
+import type { ProcessManagerEvents } from "./ws-protocol.ts";
+import { execSync } from "child_process";
 
 const MAX_LOG_LINES = 10_000;
+
+/** Recursively kill a process and all its descendants */
+function killTree(pid: number, signal: NodeJS.Signals) {
+  // Kill children first (depth-first), then the process itself
+  try {
+    const out = execSync(`pgrep -P ${pid} .`, { encoding: "utf-8", timeout: 1000 });
+    for (const line of out.trim().split("\n")) {
+      const childPid = parseInt(line, 10);
+      if (childPid > 0) killTree(childPid, signal);
+    }
+  } catch {
+    // No children or pgrep failed
+  }
+  try { process.kill(pid, signal); } catch {}
+}
 
 export class ProcessManager {
   private config: KernConfig;
   private states: ProcessState[];
   private procs: (Bun.Subprocess | null)[];
   private onChange: () => void;
+  private events: ProcessManagerEvents;
   private batchPending = false;
 
-  constructor(config: KernConfig, onChange: () => void) {
+  constructor(config: KernConfig, onChange: () => void, events?: ProcessManagerEvents) {
     this.config = config;
     this.onChange = onChange;
+    this.events = events ?? {};
     this.states = config.processes.map((processConfig) => ({
       config: processConfig,
       status: "stopped",
@@ -33,13 +52,19 @@ export class ProcessManager {
 
   private appendLog(index: number, stream: "stdout" | "stderr", text: string) {
     const state = this.states[index]!;
+    const newLines: LogLine[] = [];
     const lines = text.split("\n");
     for (const line of lines) {
       if (line === "") continue;
-      state.logs.push({ timestamp: Date.now(), stream, text: line });
+      const logLine: LogLine = { timestamp: Date.now(), stream, text: line };
+      state.logs.push(logLine);
+      newLines.push(logLine);
     }
     if (state.logs.length > MAX_LOG_LINES) {
       state.logs = state.logs.slice(-MAX_LOG_LINES);
+    }
+    if (newLines.length > 0) {
+      this.events.onLog?.(index, newLines);
     }
     this.notify();
   }
@@ -72,7 +97,9 @@ export class ProcessManager {
   }
 
   private setStatus(index: number, status: ProcessStatus) {
-    this.states[index]!.status = status;
+    const state = this.states[index]!;
+    state.status = status;
+    this.events.onStatusChange?.(index, status, state.exitCode, state.pid);
     this.notify();
   }
 
@@ -145,15 +172,13 @@ export class ProcessManager {
 
     this.setStatus(index, "stopping");
 
-    // Kill the process group so child processes (sleep, etc.) also die
-    try { process.kill(-proc.pid, "SIGTERM"); } catch {
-      try { proc.kill("SIGTERM"); } catch {}
-    }
-    // Give process time to exit gracefully, then force kill the group
+    // Kill entire process tree (children first, then parent)
+    killTree(proc.pid, "SIGTERM");
+
+    // Give processes time to exit gracefully, then force kill the tree
     const timeout = setTimeout(() => {
-      try { process.kill(-proc.pid, "SIGKILL"); } catch {}
-      try { proc.kill("SIGKILL"); } catch {}
-    }, 1000);
+      killTree(proc.pid, "SIGKILL");
+    }, 3000);
     await proc.exited;
     clearTimeout(timeout);
 
@@ -165,6 +190,7 @@ export class ProcessManager {
     await this.stop(index);
     this.states[index]!.logs = [];
     this.states[index]!.exitCode = null;
+    this.events.onLogClear?.(index);
     await this.startProcess(index);
   }
 
@@ -185,7 +211,7 @@ export class ProcessManager {
     for (let i = 0; i < this.procs.length; i++) {
       const proc = this.procs[i];
       if (!proc) continue;
-      try { proc.kill("SIGKILL"); } catch {}
+      killTree(proc.pid, "SIGKILL");
       this.procs[i] = null;
       this.states[i]!.pid = null;
       this.states[i]!.status = "stopped";

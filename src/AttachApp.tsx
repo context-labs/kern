@@ -3,23 +3,22 @@ import { useKeyboard, useRenderer } from "@opentui/react";
 import { Sidebar } from "./components/Sidebar.tsx";
 import { LogViewer } from "./components/LogViewer.tsx";
 import { StatusBar } from "./components/StatusBar.tsx";
-import { ProcessManager } from "./lib/process-manager.ts";
+import { RemoteManager } from "./lib/remote-manager.ts";
 import { copyToClipboard } from "./lib/clipboard.ts";
-import { getVersionInfo, checkForUpdates } from "./lib/version.ts";
+import { getVersionInfo } from "./lib/version.ts";
 import { matchesBinding } from "./lib/user-config.ts";
 import { KernProvider } from "./lib/theme-context.ts";
-import type { VersionInfo } from "./lib/version.ts";
-import type { KernConfig, ProcessState } from "./lib/types.ts";
+import type { ProcessState } from "./lib/types.ts";
 import type { ThemeColors, Keybindings } from "./lib/user-config.ts";
 
-interface AppProps {
-  config: KernConfig;
-  onManagerReady?: (manager: ProcessManager) => void;
+interface AttachAppProps {
+  sessionId: string;
+  port: number;
   theme: ThemeColors;
   keybindings: Keybindings;
 }
 
-export function App({ config, onManagerReady, theme, keybindings }: AppProps) {
+export function AttachApp({ sessionId, port, theme, keybindings }: AttachAppProps) {
   const renderer = useRenderer();
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [processes, setProcesses] = useState<ProcessState[]>([]);
@@ -27,9 +26,15 @@ export function App({ config, onManagerReady, theme, keybindings }: AppProps) {
   const [searchMode, setSearchMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
-  const [versionInfo, setVersionInfo] = useState<VersionInfo>(getVersionInfo());
-  const managerRef = useRef<ProcessManager | null>(null);
+  const [disconnected, setDisconnected] = useState(false);
+  const managerRef = useRef<RemoteManager | null>(null);
   const statusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const versionInfo = {
+    ...getVersionInfo(),
+    // Override display to show attached session
+    current: `${getVersionInfo().current} attached:${sessionId}`,
+  };
 
   const showStatus = useCallback((msg: string) => {
     setStatusMessage(msg);
@@ -38,52 +43,48 @@ export function App({ config, onManagerReady, theme, keybindings }: AppProps) {
   }, []);
 
   useEffect(() => {
-    checkForUpdates().then(setVersionInfo);
-  }, []);
-
-  useEffect(() => {
-    const manager = new ProcessManager(config, () => {
-      setProcesses([...manager.getAllStates()]);
+    const remote = new RemoteManager(`ws://127.0.0.1:${port}`, {
+      onChange() {
+        setProcesses([...remote.getAllStates()]);
+      },
+      onDisconnect(reason) {
+        setDisconnected(true);
+        setStatusMessage(`Disconnected: ${reason}`);
+        setTimeout(() => renderer.destroy(), 2000);
+      },
     });
-    managerRef.current = manager;
-    setProcesses([...manager.getAllStates()]);
-    manager.startAll();
-    onManagerReady?.(manager);
+    managerRef.current = remote;
 
     return () => {
-      manager.stopAll();
+      remote.close();
     };
-  }, [config, onManagerReady]);
+  }, [port, renderer]);
 
   const onSearchChange = useCallback((query: string) => {
     setSearchQuery(query);
     setCurrentMatchIndex(0);
   }, []);
 
-  const shuttingDownRef = useRef(false);
   const kb = keybindings;
 
   useKeyboard((key) => {
     const manager = managerRef.current;
-    if (!manager) return;
+    if (!manager || disconnected) return;
 
-    // Quit / force kill
-    if (matchesBinding(key, kb.quit) || matchesBinding(key, kb.forceQuit)) {
-      if (searchMode) return; // let input handle it
-      if (shuttingDownRef.current) {
-        manager.forceKillAll();
-        renderer.destroy();
-        return;
-      }
-      shuttingDownRef.current = true;
-      setStatusMessage("Shutting down...");
-      manager.stopAll().then(() => {
-        renderer.destroy();
-      });
+    // q = detach (daemon keeps running)
+    if (matchesBinding(key, kb.quit)) {
+      if (searchMode) return;
+      renderer.destroy();
       return;
     }
 
-    if (shuttingDownRef.current) return;
+    // ctrl+c = shutdown daemon
+    if (matchesBinding(key, kb.forceQuit)) {
+      if (searchMode) return;
+      setStatusMessage("Shutting down daemon...");
+      manager.shutdownDaemon();
+      return;
+    }
 
     // In search mode (input open), only handle Escape and Enter
     if (searchMode) {
@@ -92,7 +93,6 @@ export function App({ config, onManagerReady, theme, keybindings }: AppProps) {
         setSearchQuery("");
         setCurrentMatchIndex(0);
       } else if (matchesBinding(key, kb.searchClose)) {
-        // Close input, keep highlights + match position
         setSearchMode(false);
       }
       return;
@@ -105,17 +105,11 @@ export function App({ config, onManagerReady, theme, keybindings }: AppProps) {
         setCurrentMatchIndex(0);
         return;
       }
-      if (
-        matchesBinding(key, kb.searchClose) ||
-        matchesBinding(key, kb.searchNext)
-      ) {
+      if (matchesBinding(key, kb.searchClose) || matchesBinding(key, kb.searchNext)) {
         setCurrentMatchIndex((i) => i + 1);
         return;
       }
-      if (
-        matchesBinding(key, kb.searchPrevious) ||
-        matchesBinding(key, kb.selectPrevious)
-      ) {
+      if (matchesBinding(key, kb.searchPrevious) || matchesBinding(key, kb.selectPrevious)) {
         setCurrentMatchIndex((i) => i - 1);
         return;
       }
@@ -146,9 +140,7 @@ export function App({ config, onManagerReady, theme, keybindings }: AppProps) {
     // Restart
     if (matchesBinding(key, kb.restart)) {
       manager.restart(selectedIndex);
-      showStatus(
-        `Restarting ${processes[selectedIndex]?.config.name ?? "process"}...`,
-      );
+      showStatus(`Restarting ${processes[selectedIndex]?.config.name ?? "process"}...`);
       return;
     }
 
