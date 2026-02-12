@@ -12,29 +12,34 @@
 
   "processes": [
     {
-      "name": "Counter",
-      "command": "while true; do echo \"[$(date +%H:%M:%S)] tick $(( i++ ))\"; sleep 1; done"
+      "name": "Worker",
+      "command": "trap 'printf \"\\033[33m[Worker]\\033[0m SIGTERM received, finishing current job...\\n\"; sleep 2; printf \"\\033[33m[Worker]\\033[0m Job completed. Shutting down.\\n\"; exit 0' TERM; printf '\\033[1;35m[Worker]\\033[0m Connected to job queue\\n'; while true; do JOB=$((RANDOM % 1000)); printf '\\033[35m[Worker]\\033[0m Processing job \\033[1m#%d\\033[0m...\\n' \"$JOB\"; sleep 3; printf '\\033[35m[Worker]\\033[0m Job \\033[1m#%d\\033[0m \\033[32mdone\\033[0m\\n' \"$JOB\"; done",
+      // Worker shuts down first (finish current job before API stops accepting)
+      "shutdownOrder": 1
     },
     {
-      "name": "Logger",
-      "command": "for i in $(seq 1 50); do echo \"Log line $i\"; sleep 0.2; done; echo 'Done!' >&2",
-      // Intentionally bad cwd to demo crash handling
+      "name": "API Server",
+      "command": "trap 'printf \"\\033[33m[API]\\033[0m Graceful shutdown: closing connections...\\n\"; sleep 1; printf \"\\033[33m[API]\\033[0m Draining request queue...\\n\"; sleep 1; printf \"\\033[33m[API]\\033[0m Shutdown complete.\\n\"; exit 0' TERM; printf '\\033[1;32m[API]\\033[0m Server started on \\033[36mhttp://localhost:3000\\033[0m\\n'; while true; do printf '\\033[32m[API]\\033[0m %s \\033[1mGET\\033[0m /api/health \\033[32m200\\033[0m %dms\\n' \"$(date +%H:%M:%S)\" \"$((RANDOM % 50 + 5))\"; sleep 2; done",
+      // API + Cache shut down together (order 2)
+      "shutdownOrder": 2
+    },
+    {
+      "name": "Cache",
+      "command": "trap 'printf \"\\033[33m[Cache]\\033[0m Persisting cache to disk...\\n\"; sleep 2; printf \"\\033[33m[Cache]\\033[0m Written 1247 keys. Shutdown complete.\\n\"; exit 0' TERM; printf '\\033[1;36m[Cache]\\033[0m Redis-like cache ready on port \\033[36m6379\\033[0m\\n'; while true; do printf '\\033[36m[Cache]\\033[0m %s \\033[90mHIT\\033[0m session:%d \\033[90m<1ms\\033[0m\\n' \"$(date +%H:%M:%S)\" \"$((RANDOM % 500))\"; sleep 3; done",
+      // Cache shuts down with API (same order 2, so they stop in parallel)
+      "shutdownOrder": 2
+    },
+    {
+      "name": "DB",
+      "command": "trap 'printf \"\\033[33m[DB]\\033[0m Flushing WAL to disk...\\n\"; sleep 1; printf \"\\033[33m[DB]\\033[0m Closing connections...\\n\"; sleep 1; printf \"\\033[33m[DB]\\033[0m Clean shutdown.\\n\"; exit 0' TERM; printf '\\033[1;34m[DB]\\033[0m Database ready on port \\033[36m5432\\033[0m\\n'; while true; do printf '\\033[34m[DB]\\033[0m %s \\033[90mquery\\033[0m SELECT * FROM users \\033[90m%dms\\033[0m\\n' \"$(date +%H:%M:%S)\" \"$((RANDOM % 10 + 1))\"; sleep 4; done",
+      // DB shuts down last, after everything else is gone
+      "shutdownOrder": 3
+    },
+    {
+      "name": "Migrations",
+      "command": "printf '\\033[36m[Migrate]\\033[0m Running migrations...\\n'; sleep 1; printf '\\033[36m[Migrate]\\033[0m Applied: 001_create_users\\n'; sleep 0.5; printf '\\033[36m[Migrate]\\033[0m Applied: 002_add_sessions\\n'; sleep 0.5; printf '\\033[31m[Migrate]\\033[0m FATAL: column \"email\" already exists in \"users\"\\n' >&2; exit 1",
+      // Crashes on its own — demos the red crashed status dot
       "cwd": "./logs"
-    },
-    {
-      "name": "Watcher",
-      "command": "echo 'Watching files...' && while true; do echo \"$(date +%H:%M:%S) - no changes\"; sleep 3; done",
-      // Pass custom environment variables
-      "env": {
-        "WATCH_DIR": "./src",
-        "POLL_INTERVAL": "3"
-      }
-    },
-    {
-      "name": "Health Check",
-      "command": "while true; do echo \"$(date +%H:%M:%S) healthy\"; sleep 5; done",
-      // Skip the parent template for this process (runs on host even when parent is set)
-      "noParent": true
     }
   ]
 }

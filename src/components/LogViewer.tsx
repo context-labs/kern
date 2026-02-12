@@ -1,5 +1,6 @@
 import { useRef, useMemo, useEffect } from "react";
 import { useKernTheme } from "../lib/theme-context.ts";
+import { parseAnsi, hasAnsi, stripAnsi } from "../lib/ansi.ts";
 import type { ScrollBoxRenderable } from "@opentui/core";
 import type { ProcessState, LogLine } from "../lib/types.ts";
 
@@ -28,12 +29,14 @@ function findMatchIndices(logs: LogLine[], query: string): number[] {
   try {
     const re = new RegExp(query, "i");
     for (let i = 0; i < logs.length; i++) {
-      if (re.test(logs[i]!.text)) indices.push(i);
+      const plain = stripAnsi(logs[i]!.text);
+      if (re.test(plain)) indices.push(i);
     }
   } catch {
     const lower = query.toLowerCase();
     for (let i = 0; i < logs.length; i++) {
-      if (logs[i]!.text.toLowerCase().includes(lower)) indices.push(i);
+      const plain = stripAnsi(logs[i]!.text);
+      if (plain.toLowerCase().includes(lower)) indices.push(i);
     }
   }
   return indices;
@@ -133,22 +136,28 @@ export function LogViewer({
           logs.map((line, i) => {
             const isMatch = matchSet.has(i);
             const isCurrent = i === targetLogIndex;
+            // Override color: search current match > stderr > ANSI colors
+            const overrideFg = isCurrent
+              ? colors.searchCurrentMatchText
+              : line.stream === "stderr"
+                ? colors.stderrText
+                : undefined;
+
             return (
               <box
                 key={i}
                 paddingLeft={1}
                 backgroundColor={isCurrent ? colors.searchCurrentMatchBackground : isMatch ? colors.searchMatchBackground : undefined}
               >
-                <text
-                  fg={
-                    isCurrent
-                      ? colors.searchCurrentMatchText
-                      : line.stream === "stderr"
-                        ? colors.stderrText
-                        : undefined
+                <text fg={overrideFg}>
+                  {overrideFg || !hasAnsi(line.text)
+                    ? line.text.replace(/\x1b\[[0-9;]*m/g, "")
+                    : parseAnsi(line.text).map((seg, j) => (
+                        <span key={j} fg={seg.fg} bg={seg.bg}>
+                          {seg.text}
+                        </span>
+                      ))
                   }
-                >
-                  {line.text}
                 </text>
               </box>
             );

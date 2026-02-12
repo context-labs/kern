@@ -8,6 +8,49 @@ if (args.includes("--headless")) {
     console.error("Usage: kern --headless <config.jsonc> [config2.jsonc ...]");
     process.exit(1);
   }
+
+  const { resolve } = await import("path");
+  const { listSessions } = await import("./lib/session.ts");
+
+  const before = new Set((await listSessions()).map((s) => s.id));
+  const absolutePaths = configPaths.map((p) => resolve(p));
+
+  // Spawn the daemon process in the background
+  const isCompiled = process.execPath === process.argv[1] || !process.argv[1];
+  const entryScript = isCompiled ? [] : [process.argv[1]!];
+  const child = Bun.spawn([process.execPath, ...entryScript, "--daemon", ...absolutePaths], {
+    stdio: ["ignore", "ignore", "ignore"],
+    env: process.env,
+  });
+  child.unref();
+
+  // Poll for the session file (up to 5 seconds)
+  const deadline = Date.now() + 5000;
+  let newSession = null;
+  while (Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 200));
+    const current = await listSessions();
+    newSession = current.find((s) => !before.has(s.id) && s.pid === child.pid);
+    if (newSession) break;
+  }
+
+  if (newSession) {
+    console.log(`kern started in background`);
+    console.log(`  session:   ${newSession.id}`);
+    console.log(`  pid:       ${newSession.pid}`);
+    console.log(`  processes: ${newSession.processNames.join(", ")}`);
+    console.log();
+    console.log(`Attach:  kern --attach ${newSession.id}`);
+    console.log(`Stop:    kern --stop ${newSession.id}`);
+  } else {
+    console.log(`kern spawned in background (pid ${child.pid})`);
+    console.log(`Use 'kern --list' to see sessions once ready.`);
+  }
+
+  process.exit(0);
+} else if (args.includes("--daemon")) {
+  // Internal: the actual headless process running in the background
+  const configPaths = args.filter((a) => a !== "--daemon");
   const { runHeadless } = await import("./headless.ts");
   await runHeadless(configPaths);
 } else if (args.includes("--attach")) {
@@ -64,10 +107,10 @@ if (args.includes("--headless")) {
   const configPaths = args;
   if (configPaths.length === 0) {
     console.error("Usage: kern <config.jsonc> [config2.jsonc ...]");
-    console.error("       kern --headless <config.jsonc>");
-    console.error("       kern --attach <session-id>");
-    console.error("       kern --list");
-    console.error("       kern --stop <session-id>");
+    console.error("       kern --headless <config.jsonc>    Start in background (detached)");
+    console.error("       kern --attach <session-id>        Attach to a session");
+    console.error("       kern --list                       List active sessions");
+    console.error("       kern --stop <session-id>          Stop a session");
     process.exit(1);
   }
 

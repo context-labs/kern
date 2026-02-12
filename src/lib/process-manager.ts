@@ -1,5 +1,6 @@
 import type { KernConfig, ProcessConfig, ProcessState, ProcessStatus, LogLine } from "./types.ts";
 import type { ProcessManagerEvents } from "./ws-protocol.ts";
+import { stripAnsi } from "./ansi.ts";
 import { execSync } from "child_process";
 
 const MAX_LOG_LINES = 10_000;
@@ -157,6 +158,10 @@ export class ProcessManager {
     });
   }
 
+  async start(index: number) {
+    await this.startProcess(index);
+  }
+
   async startAll() {
     for (let i = 0; i < this.states.length; i++) {
       await this.startProcess(i);
@@ -237,9 +242,9 @@ export class ProcessManager {
     const logs = this.getLogs(index);
     try {
       const re = new RegExp(query, "i");
-      return logs.filter((l) => re.test(l.text));
+      return logs.filter((l) => re.test(stripAnsi(l.text)));
     } catch {
-      return logs.filter((l) => l.text.includes(query));
+      return logs.filter((l) => stripAnsi(l.text).includes(query));
     }
   }
 }
